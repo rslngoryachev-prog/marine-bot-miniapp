@@ -149,10 +149,10 @@
         `${realUser.first_name || ""} ${realUser.last_name || ""}`.trim() || `User ${userId}`;
       document.getElementById("vesselInfo").textContent = `Telegram ID: ${userId}`;
     } else {
-      // Browser testing mode (no Telegram or no user data)
+      // Test mode (when opened outside Telegram) — hide the info block entirely
       userId = "1069216038";
-      document.getElementById("userInfo").textContent = "Browser test mode";
-      document.getElementById("vesselInfo").textContent = `Fake Telegram ID: ${userId}`;
+      const infoBlock = document.querySelector(".info");
+      if (infoBlock) infoBlock.style.display = "none";
     }
 
     // File selection
