@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Marine Bot — Upload Manual</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: var(--tg-theme-bg-color, #ffffff);
+      color: var(--tg-theme-text-color, #000000);
+      padding: 20px;
+      min-height: 100vh;
+    }
+    .container { max-width: 480px; margin: 0 auto; }
+    h1 { font-size: 22px; margin-bottom: 8px; }
+    .subtitle {
+      font-size: 14px;
+      color: var(--tg-theme-hint-color, #707579);
+      margin-bottom: 24px;
+    }
+    .info {
+      background: var(--tg-theme-secondary-bg-color, #f4f4f5);
+      border-radius: 12px;
+      padding: 12px 16px;
+      margin-bottom: 20px;
+      font-size: 13px;
+    }
+    .info strong { display: block; margin-bottom: 4px; }
+    .file-input-wrapper {
+      display: block;
+      width: 100%;
+      border: 2px dashed var(--tg-theme-hint-color, #c4c4c4);
+      border-radius: 12px;
+      padding: 32px 16px;
+      text-align: center;
+      cursor: pointer;
+      margin-bottom: 16px;
+      transition: border-color 0.2s;
+      box-sizing: border-box;
+    }
+    .file-input-wrapper:hover { border-color: var(--tg-theme-button-color, #2481cc); }
+    .file-input-wrapper.has-file {
+      border-color: var(--tg-theme-button-color, #2481cc);
+      border-style: solid;
+    }
+    .file-input-wrapper input[type="file"] { display: none; }
+    .file-icon { font-size: 32px; margin-bottom: 8px; }
+    .file-text { font-size: 14px; }
+    .file-text small {
+      display: block;
+      margin-top: 4px;
+      color: var(--tg-theme-hint-color, #707579);
+    }
+    button {
+      width: 100%;
+      padding: 14px;
+      border: none;
+      border-radius: 12px;
+      font-size: 16px;
+      font-weight: 500;
+      cursor: pointer;
+      background: var(--tg-theme-button-color, #2481cc);
+      color: var(--tg-theme-button-text-color, #ffffff);
+    }
+    button:disabled { opacity: 0.5; cursor: not-allowed; }
+    .progress {
+      display: none;
+      margin-top: 16px;
+    }
+    .progress.active { display: block; }
+    .progress-bar {
+      height: 8px;
+      background: var(--tg-theme-secondary-bg-color, #f4f4f5);
+      border-radius: 4px;
+      overflow: hidden;
+      margin-bottom: 8px;
+    }
+    .progress-fill {
+      height: 100%;
+      background: var(--tg-theme-button-color, #2481cc);
+      width: 0%;
+      transition: width 0.2s;
+    }
+    .progress-text {
+      font-size: 13px;
+      color: var(--tg-theme-hint-color, #707579);
+      text-align: center;
+    }
+    .status {
+      margin-top: 16px;
+      padding: 12px 16px;
+      border-radius: 12px;
+      font-size: 14px;
+      display: none;
+    }
+    .status.active { display: block; }
+    .status.success { background: #d1f4dd; color: #1a7f37; }
+    .status.error { background: #fddede; color: #b91c1c; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>📤 Upload Manual</h1>
+    <p class="subtitle">PDF will be added to your vessel's library</p>
+
+    <div class="info">
+      <strong id="userInfo">Loading...</strong>
+      <span id="vesselInfo"></span>
+    </div>
+
+    <label class="file-input-wrapper" id="fileWrapper">
+      <input type="file" id="fileInput" accept="application/pdf">
+      <div class="file-icon">📄</div>
+      <div class="file-text" id="fileText">
+        Tap to choose a PDF
+        <small>Maximum 50 MB</small>
+      </div>
+    </label>
+
+    <button id="uploadBtn" disabled>Upload</button>
+
+    <div class="progress" id="progress">
+      <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+      <div class="progress-text" id="progressText">0%</div>
+    </div>
+
+    <div class="status" id="status"></div>
+  </div>
+
+  <script>
+    const N8N_UPLOAD_URL_ENDPOINT = "https://created77.app.n8n.cloud/webhook/mini-app-upload-url";
+    const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50 MB
+
+    const tg = window.Telegram?.WebApp;
+    let selectedFile = null;
+    let userId = null;
+
+    // Initialize Telegram WebApp
+    const realUser = tg?.initDataUnsafe?.user;
+    if (tg && realUser) {
+      // Real Telegram environment
+      tg.ready();
+      tg.expand();
+      userId = realUser.id;
+      document.getElementById("userInfo").textContent =
+        `${realUser.first_name || ""} ${realUser.last_name || ""}`.trim() || `User ${userId}`;
+      document.getElementById("vesselInfo").textContent = `Telegram ID: ${userId}`;
+    } else {
+      // Browser testing mode (no Telegram or no user data)
+      userId = "1069216038";
+      document.getElementById("userInfo").textContent = "Browser test mode";
+      document.getElementById("vesselInfo").textContent = `Fake Telegram ID: ${userId}`;
+    }
+
+    // File selection
+    const fileInput = document.getElementById("fileInput");
+    const fileWrapper = document.getElementById("fileWrapper");
+    const fileText = document.getElementById("fileText");
+    const uploadBtn = document.getElementById("uploadBtn");
+
+    fileInput.addEventListener("change", (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      if (file.type !== "application/pdf") {
+        showStatus("error", "Only PDF files are allowed");
+        fileInput.value = "";
+        return;
+      }
+      if (file.size > MAX_FILE_SIZE) {
+        showStatus("error", `File too large. Maximum ${formatSize(MAX_FILE_SIZE)}`);
+        fileInput.value = "";
+        return;
+      }
+
+      selectedFile = file;
+      fileWrapper.classList.add("has-file");
+      fileText.innerHTML = `<strong>${file.name}</strong><small>${formatSize(file.size)}</small>`;
+      uploadBtn.disabled = false;
+      hideStatus();
+    });
+
+    // Upload click
+    uploadBtn.addEventListener("click", async () => {
+      if (!selectedFile || !userId) return;
+      uploadBtn.disabled = true;
+      hideStatus();
+      showProgress();
+
+      try {
+        // Step 1: Get signed upload URL from n8n
+        updateProgress(5, "Requesting upload permission...");
+        const urlResp = await fetch(N8N_UPLOAD_URL_ENDPOINT, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            telegram_id: String(userId),
+            filename: sanitizeFilename(selectedFile.name)
+          })
+        });
+        if (!urlResp.ok) throw new Error("Backend error: " + urlResp.status);
+        const data = await urlResp.json();
+        const item = Array.isArray(data) ? data[0] : data;
+        if (!item.success || !item.upload_url) throw new Error("Invalid backend response");
+
+        // Step 2: Upload file directly to Supabase Storage
+        updateProgress(10, "Uploading file...");
+        await uploadFileWithProgress(item.upload_url, selectedFile, (pct) => {
+          updateProgress(10 + Math.floor(pct * 0.85), "Uploading file...");
+        });
+
+        updateProgress(100, "Done!");
+        showStatus("success", `File "${selectedFile.name}" uploaded successfully. Processing will start shortly.`);
+
+        // Optionally close Mini App after success
+        setTimeout(() => { if (tg) tg.close(); }, 2500);
+
+      } catch (err) {
+        console.error(err);
+        hideProgress();
+        showStatus("error", `Error: ${err.message}`);
+        uploadBtn.disabled = false;
+      }
+    });
+
+    // PUT upload with progress tracking
+    function uploadFileWithProgress(url, file, onProgress) {
+      return new Promise((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        xhr.open("PUT", url);
+        xhr.setRequestHeader("Content-Type", "application/pdf");
+        xhr.upload.onprogress = (e) => {
+          if (e.lengthComputable) onProgress(e.loaded / e.total);
+        };
+        xhr.onload = () => {
+          if (xhr.status >= 200 && xhr.status < 300) resolve();
+          else reject(new Error(`Upload failed: ${xhr.status} ${xhr.responseText.slice(0, 200)}`));
+        };
+        xhr.onerror = () => reject(new Error("Network error during upload"));
+        xhr.send(file);
+      });
+    }
+
+    // Helpers
+    function formatSize(bytes) {
+      if (bytes < 1024) return bytes + " B";
+      if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + " KB";
+      return (bytes / (1024 * 1024)).toFixed(1) + " MB";
+    }
+    function sanitizeFilename(name) {
+      return name.replace(/[^\w.-]/g, "_");
+    }
+    function showProgress() { document.getElementById("progress").classList.add("active"); }
+    function hideProgress() { document.getElementById("progress").classList.remove("active"); }
+    function updateProgress(pct, text) {
+      document.getElementById("progressFill").style.width = pct + "%";
+      document.getElementById("progressText").textContent = text || (pct + "%");
+    }
+    function showStatus(type, msg) {
+      const el = document.getElementById("status");
+      el.className = "status active " + type;
+      el.textContent = msg;
+    }
+    function hideStatus() {
+      document.getElementById("status").className = "status";
+    }
+  </script>
+</body>
+</html>
