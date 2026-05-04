@@ -132,6 +132,7 @@
 
   <script>
     const N8N_UPLOAD_URL_ENDPOINT = "https://created77.app.n8n.cloud/webhook/mini-app-upload-url";
+    const N8N_UPLOAD_COMPLETE_ENDPOINT = "https://created77.app.n8n.cloud/webhook/mini-app-upload-complete";
     const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50 MB
 
     const tg = window.Telegram?.WebApp;
@@ -211,6 +212,25 @@
         await uploadFileWithProgress(item.upload_url, selectedFile, (pct) => {
           updateProgress(10 + Math.floor(pct * 0.85), "Uploading file...");
         });
+
+        updateProgress(100, "Notifying server...");
+
+        // Step 3: Notify backend that upload is complete
+        try {
+          await fetch(N8N_UPLOAD_COMPLETE_ENDPOINT, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              telegram_id: String(userId),
+              storage_path: item.path,
+              filename: sanitizeFilename(selectedFile.name),
+              file_size: selectedFile.size
+            })
+          });
+        } catch (notifyErr) {
+          // Non-fatal: file is already in storage, just log it
+          console.warn("Notify failed:", notifyErr);
+        }
 
         updateProgress(100, "Done!");
         showStatus("success", `File "${selectedFile.name}" uploaded successfully. Processing will start shortly.`);
