@@ -29,6 +29,35 @@
       font-size: 13px;
     }
     .info strong { display: block; margin-bottom: 4px; }
+    .field-label {
+      display: block;
+      font-size: 13px;
+      font-weight: 500;
+      margin-bottom: 8px;
+      color: var(--tg-theme-text-color, #000000);
+    }
+    .doc-type-select {
+      width: 100%;
+      padding: 14px 16px;
+      border: 2px solid var(--tg-theme-hint-color, #c4c4c4);
+      border-radius: 12px;
+      font-size: 15px;
+      background: var(--tg-theme-bg-color, #ffffff);
+      color: var(--tg-theme-text-color, #000000);
+      margin-bottom: 16px;
+      appearance: none;
+      -webkit-appearance: none;
+      background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23707579' stroke-width='2'%3e%3cpolyline points='6 9 12 15 18 9'/%3e%3c/svg%3e");
+      background-repeat: no-repeat;
+      background-position: right 14px center;
+      background-size: 18px;
+      padding-right: 44px;
+      cursor: pointer;
+    }
+    .doc-type-select:focus {
+      outline: none;
+      border-color: var(--tg-theme-button-color, #2481cc);
+    }
     .file-input-wrapper {
       display: block;
       width: 100%;
@@ -111,6 +140,16 @@
       <span id="vesselInfo"></span>
     </div>
 
+    <label class="field-label" for="docTypeSelect">Document type</label>
+    <select class="doc-type-select" id="docTypeSelect">
+      <option value="manual">📘 Equipment manual</option>
+      <option value="practical_guide">📚 Practical guide / book</option>
+      <option value="regulation">📜 Regulation (SOLAS, MARPOL, ISM)</option>
+      <option value="drawing">📐 Technical drawing / scheme</option>
+      <option value="company_rules">🏢 Company rules</option>
+      <option value="parts_catalog">🔩 Parts / tools catalog</option>
+    </select>
+
     <label class="file-input-wrapper" id="fileWrapper">
       <input type="file" id="fileInput" accept="application/pdf">
       <div class="file-icon">📄</div>
@@ -161,6 +200,7 @@
     const fileWrapper = document.getElementById("fileWrapper");
     const fileText = document.getElementById("fileText");
     const uploadBtn = document.getElementById("uploadBtn");
+    const docTypeSelect = document.getElementById("docTypeSelect");
 
     fileInput.addEventListener("change", (e) => {
       const file = e.target.files[0];
@@ -188,8 +228,11 @@
     uploadBtn.addEventListener("click", async () => {
       if (!selectedFile || !userId) return;
       uploadBtn.disabled = true;
+      docTypeSelect.disabled = true;
       hideStatus();
       showProgress();
+
+      const docType = docTypeSelect.value;
 
       try {
         // Step 1: Get signed upload URL from n8n
@@ -226,6 +269,7 @@
               storage_path: item.path,
               filename: sanitizeFilename(selectedFile.name),
               file_size: selectedFile.size,
+              doc_type: docType,
               initData: tg ? tg.initData : ""
             })
           });
@@ -245,6 +289,7 @@
         hideProgress();
         showStatus("error", `Error: ${err.message}`);
         uploadBtn.disabled = false;
+        docTypeSelect.disabled = false;
       }
     });
 
