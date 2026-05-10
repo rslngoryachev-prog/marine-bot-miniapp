@@ -199,7 +199,8 @@
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             telegram_id: String(userId),
-            filename: sanitizeFilename(selectedFile.name)
+            filename: sanitizeFilename(selectedFile.name),
+            initData: tg ? tg.initData : ""
           })
         });
         if (!urlResp.ok) throw new Error("Backend error: " + urlResp.status);
@@ -224,7 +225,8 @@
               telegram_id: String(userId),
               storage_path: item.path,
               filename: sanitizeFilename(selectedFile.name),
-              file_size: selectedFile.size
+              file_size: selectedFile.size,
+              initData: tg ? tg.initData : ""
             })
           });
         } catch (notifyErr) {
