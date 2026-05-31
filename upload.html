@@ -155,7 +155,7 @@
       <div class="file-icon">📄</div>
       <div class="file-text" id="fileText">
         Tap to choose a PDF
-        <small>Maximum 50 MB</small>
+        <small>Maximum 500 MB</small>
       </div>
     </label>
 
@@ -172,7 +172,7 @@
   <script>
     const N8N_UPLOAD_URL_ENDPOINT = "https://created77.app.n8n.cloud/webhook/mini-app-upload-url";
     const N8N_UPLOAD_COMPLETE_ENDPOINT = "https://created77.app.n8n.cloud/webhook/mini-app-upload-complete";
-    const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50 MB
+    const MAX_FILE_SIZE = 500 * 1024 * 1024; // 500 MB
 
     const tg = window.Telegram?.WebApp;
     let selectedFile = null;
